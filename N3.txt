@@ -1,0 +1,118 @@
+import sqlite3
+
+class UniversityDB:
+    def __init__(self, db_name="university.db"):
+        self.conn = sqlite3.connect(db_name)
+        self.cursor = self.conn.cursor()
+        self._create_tables()
+
+    def _create_tables(self):
+  
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            surname TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            city TEXT NOT NULL
+        )
+        ''')
+
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            time_start TEXT NOT NULL,
+            time_end TEXT NOT NULL
+        )
+        ''')
+
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Student_courses (
+            student_id INTEGER NOT NULL,
+            course_id INTEGER NOT NULL,
+            FOREIGN KEY (student_id) REFERENCES Students (id),
+            FOREIGN KEY (course_id) REFERENCES Courses (id)
+        )
+        ''')
+
+    def insert_data(self):
+        self.cursor.executemany('''
+        INSERT INTO Courses (id, name, time_start, time_end) 
+        VALUES (?, ?, ?, ?)''', [
+            (1, 'python', '21.07.21', '21.08.21'),
+            (2, 'java', '13.07.21', '16.08.21')
+        ])
+
+        self.cursor.executemany('''
+        INSERT INTO Students (id, name, surname, age, city) 
+        VALUES (?, ?, ?, ?, ?)''', [
+            (1, 'Max', 'Brooks', 24, 'Spb'),
+            (2, 'John', 'Stones', 15, 'Spb'),
+            (3, 'Andy', 'Wings', 45, 'Manhester'),
+            (4, 'Kate', 'Brooks', 34, 'Spb')
+        ])
+
+        self.cursor.executemany('''
+        INSERT INTO Student_courses (student_id, course_id) 
+        VALUES (?, ?)''', [
+            (1, 1),
+            (2, 1),
+            (3, 1),
+            (4, 2)
+        ])
+
+        self.conn.commit()
+
+    def execute_query(self, query, params=None):
+        """Выполняет произвольный SQL-запрос."""
+        if params is None:
+            self.cursor.execute(query)
+        else:
+            self.cursor.execute(query, params)
+        return self.cursor.fetchall()
+
+    def get_students_over_30(self):
+        query = '''SELECT * FROM Students WHERE age > 30'''
+        return self.execute_query(query)
+
+    def get_students_on_python(self):
+        query = '''
+        SELECT Students.* FROM Students 
+        JOIN Student_courses ON Students.id = Student_courses.student_id 
+        JOIN Courses ON Student_courses.course_id = Courses.id 
+        WHERE Courses.name = 'python'
+        '''
+        return self.execute_query(query)
+
+    def get_students_on_python_from_spb(self):
+        query = '''
+        SELECT Students.* FROM Students 
+        JOIN Student_courses ON Students.id = Student_courses.student_id 
+        JOIN Courses ON Student_courses.course_id = Courses.id 
+        WHERE Courses.name = 'python' AND Students.city = 'Spb'
+        '''
+        return self.execute_query(query)
+
+    def close(self):
+        self.conn.close()
+
+if __name__ == "__main__":
+    db = UniversityDB()
+    db.insert_data()
+
+    print("Студенты старше 30 лет:")
+    for student in db.get_students_over_30():
+        print(student)
+      
+    print("\nСтуденты, проходящие курс по Python:")
+    for student in db.get_students_on_python():
+        print(student)
+
+    print("\nСтуденты, проходящие курс по Python и из Spb:")
+    for student in db.get_students_on_python_from_spb():
+        print(student)
+
+    db.close()
+
+    print("\nГотово!")
